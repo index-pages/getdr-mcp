@@ -19,7 +19,9 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   setup instructions when neither is there.
 - Result: the getdr JSON records as text, followed by the Ahrefs attribution;
   `structuredContent` with an `outputSchema` for protocol 2025-06-18 and later.
-- MCP protocol versions 2025-11-25, 2025-06-18, 2025-03-26 and 2024-11-05.
+- MCP protocol versions 2026-07-28 (stateless, with `server/discover`) and the
+  `initialize`-based 2025-11-25, 2025-06-18, 2025-03-26 and 2024-11-05.
+- A request cancelled with `notifications/cancelled` gets no response.
 - `server.json` for the MCP Registry.
 
 [Unreleased]: https://github.com/index-pages/getdr-mcp/compare/v0.1.0...HEAD

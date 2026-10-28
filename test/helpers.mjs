@@ -47,7 +47,14 @@ export function startServer(env) {
     }
   });
   let next = 1;
-  const exited = new Promise((res) => child.on("close", (code) => res(code)));
+  // If the server dies, pending waits fail instead of hanging the test run.
+  const exited = new Promise((res) =>
+    child.on("close", (code) => {
+      for (const w of waiting.values()) w(null, new Error(`server exited with ${code}: ${stderr}`));
+      waiting.clear();
+      res(code);
+    }),
+  );
   return {
     lines,
     get stderr() {
@@ -58,10 +65,9 @@ export function startServer(env) {
     },
     // Resolves with the response that carries this id.
     waitFor(id) {
-      return new Promise((res) => waiting.set(id, res));
+      return new Promise((res, rej) => waiting.set(id, (msg, err) => (err ? rej(err) : res(msg))));
     },
-    request(method, params) {
-      const id = next++;
+    request(method, params, id = next++) {
       const p = this.waitFor(id);
       const msg = { jsonrpc: "2.0", id, method };
       if (params !== undefined) msg.params = params;
@@ -82,8 +88,10 @@ export function startServer(env) {
       this.notify("notifications/initialized");
       return res;
     },
-    async callTool(args) {
-      const res = await this.request("tools/call", { name: "get_dr", arguments: args });
+    async callTool(args, meta) {
+      const params = { name: "get_dr", arguments: args };
+      if (meta) params._meta = meta;
+      const res = await this.request("tools/call", params);
       if (res.error) throw new Error(`tools/call failed: ${JSON.stringify(res.error)}`);
       return res.result;
     },
@@ -92,6 +100,15 @@ export function startServer(env) {
       child.stdin.end();
       return exited;
     },
+  };
+}
+
+// Request _meta of the stateless 2026-07-28 revision.
+export function modernMeta(version = "2026-07-28") {
+  return {
+    "io.modelcontextprotocol/protocolVersion": version,
+    "io.modelcontextprotocol/clientInfo": { name: "getdr-mcp-test", version: "0" },
+    "io.modelcontextprotocol/clientCapabilities": {},
   };
 }
 

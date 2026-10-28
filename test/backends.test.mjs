@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildGetdr, parseText, removeDir, startMock, startServer, tempDir } from "./helpers.mjs";
+import { buildGetdr, modernMeta, parseText, removeDir, startMock, startServer, tempDir } from "./helpers.mjs";
 
 const ATTRIBUTION = "Domain Rating by Ahrefs – https://ahrefs.com/";
 const TOKEN = "test-token";
@@ -123,6 +123,23 @@ test("version defaults to dr3 even when the getdr config says dr4", async (t) =>
   if (skipReason()) return t.skip(skipReason());
   const recs = checkSuccess(await call(binaryEnv(mock.url, TOKEN, 'version = "dr4"\n'), { targets: ["example.com"] }));
   assert.equal(recs[0].version, "dr3");
+});
+
+test("2026-07-28 tools/call without a handshake", async (t) => {
+  if (skipReason()) return t.skip(skipReason());
+  for (const env of [apiEnv(mock.url), binaryEnv(mock.url)]) {
+    const s = startServer(env);
+    try {
+      const r = await s.callTool({ targets: ["ahrefs.com"] }, modernMeta());
+      assert.equal(r.resultType, "complete");
+      assert.deepEqual(r._meta, { "io.modelcontextprotocol/serverInfo": { name: "getdr-mcp", title: "getdr", version: "0.1.0" } });
+      delete r.resultType;
+      delete r._meta;
+      assert.equal(checkSuccess(r)[0].dr, 91);
+    } finally {
+      await s.close();
+    }
+  }
 });
 
 test("protocol 2025-03-26 gets text only", async (t) => {
@@ -284,4 +301,36 @@ test("live Ahrefs through the binary", async (t) => {
   const recs = checkSuccess(await call(env, { targets: ["ahrefs.com"] }));
   assert.equal(recs[0].target, "ahrefs.com");
   assert.equal(typeof recs[0].dr, "number");
+});
+
+// A cancelled request gets no response, in both eras.
+test("notifications/cancelled suppresses the response", async () => {
+  let release;
+  const held = new Promise((r) => (release = r));
+  let arrived;
+  const requestSeen = new Promise((r) => (arrived = r));
+  const srv = createServer(async (req, res) => {
+    req.resume();
+    arrived();
+    await held;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ results: [{ target: "a.com", dr: 1, version: "dr3", checked_at: "2026-10-28T12:00:00Z", cached: false }] }));
+  });
+  await new Promise((r) => srv.listen(0, "127.0.0.1", r));
+  const s = startServer({ PATH: dir, HOME: dir, GETDR_API: `http://127.0.0.1:${srv.address().port}` });
+  try {
+    await s.initialize();
+    s.sendRaw(JSON.stringify({ jsonrpc: "2.0", id: "slow", method: "tools/call", params: { name: "get_dr", arguments: { targets: ["a.com"] } } }));
+    await requestSeen;
+    s.notify("notifications/cancelled", { requestId: "slow", reason: "test" });
+    await new Promise((r) => setImmediate(r));
+    release();
+    await new Promise((r) => setTimeout(r, 200));
+    await s.request("ping");
+    assert.equal(s.lines.filter((l) => JSON.parse(l).id === "slow").length, 0);
+  } finally {
+    await s.close();
+    srv.closeAllConnections?.();
+    await new Promise((r) => srv.close(r));
+  }
 });

@@ -96,7 +96,8 @@ targets. Everything else comes back as a tool error (`isError: true`) with getdr
 - getdr server answered 503, or the binary exited with code 3 – the Ahrefs key is missing or rejected;
 - the server is unreachable, the binary failed, or a call timed out.
 
-Supported MCP protocol versions: 2025-11-25, 2025-06-18, 2025-03-26 and 2024-11-05.
+Supported MCP protocol versions: 2026-07-28 (stateless: `server/discover` and per-request `_meta`, no
+handshake) and the `initialize`-based 2025-11-25, 2025-06-18, 2025-03-26 and 2024-11-05, served side by side.
 
 ## Attribution
 
