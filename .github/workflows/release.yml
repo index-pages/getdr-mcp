@@ -43,4 +43,10 @@ jobs:
       # Versions in package.json, server.json and the build match the tag;
       # the packed tarball holds dist/index.js with its shebang.
       - run: node scripts/check-release.mjs "$GITHUB_REF_NAME"
-      - run: npm publish --provenance --access public --ignore-scripts
+      # A version already on npm (e.g. a manual first publish) is not an error.
+      - run: |
+          if npm view "getdr-mcp@${GITHUB_REF_NAME#v}" version >/dev/null 2>&1; then
+            echo "getdr-mcp@${GITHUB_REF_NAME#v} is already on npm, skipping publish"
+          else
+            npm publish --provenance --access public --ignore-scripts
+          fi
