@@ -57,6 +57,10 @@ Install the binary with `go install github.com/index-pages/getdr@latest` or from
 
 Both backends return the same records. Calls time out after 120 seconds.
 
+Proxies: the HTTP backend uses Node's built-in `fetch`, which ignores `HTTP_PROXY`/`HTTPS_PROXY` unless
+`NODE_USE_ENV_PROXY=1` is set (Node 22.21 or later, or 24 and later; older versions have no built-in proxy
+support). The binary backend honours `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` as usual.
+
 ## Tool
 
 `get_dr` – "Ahrefs Domain Rating (0–100) for domains or URLs, via getdr by Index Pages".
@@ -125,8 +129,26 @@ npm test
 The backend tests build `getdr` and its mock-backed server from the getdr source tree (`../bin`, or
 `GETDR_SRC`) and need Go; without it they are skipped. The live check runs only when `AHREFS_KEY` is set.
 
-Build a release with `npm run build` before `npm publish`: with install scripts disabled (`ignore-scripts`),
-`prepack` does not run and the package would ship without `dist/`.
+## Releasing
+
+Bump the version in `package.json`, `server.json` (twice) and `src/version.ts`, update `CHANGELOG.md`, then
+push a tag `vX.Y.Z`. `.github/workflows/release.yml` builds, runs the tests against the getdr source at the
+same tag, checks that every version matches the tag and that the packed tarball holds `dist/index.js` with its
+shebang, and publishes with npm trusted publishing (OIDC, no token, provenance included).
+
+Trusted publishing can only be configured for a package that already exists on npm, so the first release is
+published by hand once: `npm login`, then `npm run release`. Right after that, add the trusted publisher on
+npmjs.com (package Settings → Trusted publishing: GitHub Actions, `index-pages` / `getdr-mcp`, workflow
+`release.yml`); the workflow has to complete its first publish within 2 days or the configuration expires.
+
+For any manual publish use `npm run release` (build, tests, `check-release`, `npm publish`), never a bare
+`npm publish`: with install scripts disabled (`ignore-scripts`) `prepack` does not run and the package would
+ship without `dist/`. `prepack` stays as a fallback for setups that run scripts.
+
+MCP Registry (manual, after the npm release): install `mcp-publisher` from the
+[registry releases](https://github.com/modelcontextprotocol/registry/releases), run
+`mcp-publisher login github` as a member of the `index-pages` GitHub org, then `mcp-publisher publish` in
+the repo root. It reads `server.json` and checks `mcpName` in the published npm package.
 
 ## License
 

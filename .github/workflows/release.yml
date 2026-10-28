@@ -1,0 +1,46 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+# npm trusted publishing: the OIDC token replaces an NPM_TOKEN secret.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned to commit SHAs (tag in the comment).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The backend tests build getdr and its mock server from source; the
+      # repos are released together, so the same tag is checked out.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: index-pages/getdr
+          ref: ${{ github.ref_name }}
+          path: getdr-src
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: getdr-src/go.mod
+          cache: false
+      # Node 24 ships npm 11, which trusted publishing needs (>= 11.5.1).
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: npm test
+        env:
+          GETDR_SRC: ${{ github.workspace }}/getdr-src
+      # Versions in package.json, server.json and the build match the tag;
+      # the packed tarball holds dist/index.js with its shebang.
+      - run: node scripts/check-release.mjs "$GITHUB_REF_NAME"
+      - run: npm publish --provenance --access public --ignore-scripts
