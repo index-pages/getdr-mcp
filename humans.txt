@@ -1,0 +1,14 @@
+/* TEAM */
+Team: Index Pages
+Site: https://index-pages.com
+Project: https://index-pages.com/getdr
+
+/* THANKS */
+Domain Rating data: Ahrefs – https://ahrefs.com/
+
+/* SITE */
+Last update: 2026/10/28
+Language: English
+Standards: Model Context Protocol, JSON-RPC 2.0
+Components: none (no runtime dependencies)
+Software: Node.js, TypeScript

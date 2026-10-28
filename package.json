@@ -1,0 +1,45 @@
+{
+  "name": "getdr-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Ahrefs Domain Rating via getdr by Index Pages",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ahrefs",
+    "domain-rating",
+    "seo",
+    "getdr"
+  ],
+  "author": "Index Pages",
+  "homepage": "https://index-pages.com/getdr",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/index-pages/getdr-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/index-pages/getdr-mcp/issues"
+  },
+  "mcpName": "io.github.index-pages/getdr-mcp",
+  "type": "module",
+  "bin": {
+    "getdr-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "humans.txt"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
+    "prepack": "npm run build",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "18.19.130",
+    "typescript": "6.0.3"
+  }
+}
