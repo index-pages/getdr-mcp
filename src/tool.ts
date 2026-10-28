@@ -25,7 +25,7 @@ export function toolDefinition(structured: boolean): unknown {
         version: {
           type: "string",
           enum: ["dr3", "dr4"],
-          description: "DR formula: dr3 (default) or dr4 (the new one). Values are not comparable between versions.",
+          description: "DR formula: dr3 or dr4 (the new one); default dr3, whatever the getdr config says. Values are not comparable between versions.",
         },
         fresh: {
           type: "boolean",

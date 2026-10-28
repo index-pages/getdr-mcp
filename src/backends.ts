@@ -79,8 +79,8 @@ function serverError(body: string): string {
 export async function viaApi(base: string, token: string | undefined, q: Query): Promise<Outcome> {
   const url = base.replace(/\/+$/, "") + "/dr";
   const where = `getdr server ${base} (GETDR_API)`;
-  const body: { [k: string]: unknown } = { targets: q.targets };
-  if (q.version) body.version = q.version;
+  // Always explicit, so a server configured for dr4 still answers dr3 by default.
+  const body: { [k: string]: unknown } = { targets: q.targets, version: q.version ?? "dr3" };
   if (q.fresh) body.fresh = true;
   const headers: { [k: string]: string } = {
     "Content-Type": "application/json",
@@ -163,7 +163,7 @@ export function viaBinary(bin: string, env: NodeJS.ProcessEnv, q: Query): Promis
   // Targets go through stdin (-f -): no shell, no argv length limits, and a
   // target that starts with "-" is never read as a flag.
   const argv = ["--format", "json", "-q"];
-  if (q.version) argv.push("--version", q.version);
+  argv.push("--version", q.version ?? "dr3"); // explicit: the binary's own config may say dr4
   if (q.fresh) argv.push("--fresh");
   argv.push("-f", "-");
 

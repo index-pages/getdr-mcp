@@ -47,7 +47,7 @@ Checked on every call, in this order:
 1. `GETDR_API` is set – one `POST $GETDR_API/dr` to that getdr server (`getdr serve`), with
    `Authorization: Bearer $GETDR_SERVE_TOKEN` when the token is set. The server holds the Ahrefs key and the
    shared cache, so this machine needs neither.
-2. `getdr` is on `PATH` – runs `getdr --format json -q [--version V] [--fresh] -f -` with the targets on
+2. `getdr` is on `PATH` – runs `getdr --format json -q --version V [--fresh] -f -` with the targets on
    stdin, no shell. The binary uses its own config, cache and key (`AHREFS_KEY`), or its own `api` setting.
 3. Neither – the tool returns an error with setup instructions.
 
@@ -64,7 +64,7 @@ Both backends return the same records. Calls time out after 120 seconds.
 | argument | type | |
 |---|---|---|
 | `targets` | string[] | required, non-empty; domains or URLs |
-| `version` | `"dr3"` or `"dr4"` | DR formula, default `dr3`; values are not comparable between versions |
+| `version` | `"dr3"` or `"dr4"` | DR formula, default `dr3` (always sent explicitly, so a server or config set to `dr4` does not change it); values are not comparable between versions |
 | `fresh` | boolean | ignore the cache and fetch again |
 
 Targets are normalized by getdr: a URL becomes its host, `www.` is dropped, everything is lower-cased and
@@ -88,9 +88,9 @@ when Ahrefs has no data; `checked_at` is `null` too when there was no response (
 MCP protocol 2025-06-18 or later also get `structuredContent` – `{"results": […], "attribution": "…"}` – and an
 `outputSchema` for it.
 
-Errors come back as tool errors (`isError: true`) with getdr's message:
+When some targets got no response, the result is a normal one: all records, followed by a note naming those
+targets. Everything else comes back as a tool error (`isError: true`) with getdr's message:
 
-- some targets got no response – the records are returned, followed by a note naming those targets;
 - no target got a response – an error with the reason;
 - getdr server answered 401 – the token is missing or wrong, set `GETDR_SERVE_TOKEN`;
 - getdr server answered 503, or the binary exited with code 3 – the Ahrefs key is missing or rejected;
@@ -123,6 +123,9 @@ npm test
 
 The backend tests build `getdr` and its mock-backed server from the getdr source tree (`../bin`, or
 `GETDR_SRC`) and need Go; without it they are skipped. The live check runs only when `AHREFS_KEY` is set.
+
+Build a release with `npm run build` before `npm publish`: with install scripts disabled (`ignore-scripts`),
+`prepack` does not run and the package would ship without `dist/`.
 
 ## License
 

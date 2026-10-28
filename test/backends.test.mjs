@@ -45,10 +45,10 @@ function apiEnv(url, token = TOKEN) {
 // Backend 2: the getdr binary on PATH, pointed at the same server through its
 // own config file (not GETDR_API, which would select backend 1).
 let configs = 0;
-function binaryEnv(url, token = TOKEN) {
+function binaryEnv(url, token = TOKEN, extraConfig = "") {
   const home = join(dir, `home${++configs}`);
   mkdirSync(home);
-  writeFileSync(join(home, "config.toml"), `api = "${url}"\n`);
+  writeFileSync(join(home, "config.toml"), `api = "${url}"\n${extraConfig}`);
   const env = {
     PATH: built.bin,
     HOME: home,
@@ -117,6 +117,12 @@ test("version and fresh reach both backends", async (t) => {
     ]);
   }
   assert.deepEqual(binary.map((r) => r.dr), api.map((r) => r.dr));
+});
+
+test("version defaults to dr3 even when the getdr config says dr4", async (t) => {
+  if (skipReason()) return t.skip(skipReason());
+  const recs = checkSuccess(await call(binaryEnv(mock.url, TOKEN, 'version = "dr4"\n'), { targets: ["example.com"] }));
+  assert.equal(recs[0].version, "dr3");
 });
 
 test("protocol 2025-03-26 gets text only", async (t) => {
@@ -192,9 +198,9 @@ test("partial results through the HTTP backend", async () => {
       { url: "/dr", auth: "Bearer t0k", body: { targets: ["a.com", "b.com"], version: "dr4", fresh: true } },
     ]);
 
-    // Without a token no Authorization header is sent; defaults are omitted.
+    // Without a token no Authorization header is sent; version defaults to dr3.
     await call({ PATH: dir, HOME: dir, GETDR_API: url }, { targets: ["a.com"] });
-    assert.deepEqual(seen[1], { url: "/dr", auth: undefined, body: { targets: ["a.com"] } });
+    assert.deepEqual(seen[1], { url: "/dr", auth: undefined, body: { targets: ["a.com"], version: "dr3" } });
   } finally {
     await new Promise((r) => srv.close(r));
   }
@@ -223,7 +229,7 @@ echo '{"target":"b.com","dr":null,"version":"dr3","checked_at":null,"cached":fal
 echo 'getdr: no response for 1 target(s): HTTP 429: b.com' >&2
 exit 2`,
   );
-  let r = await call(env, { targets: ["a.com", "-b.com"], fresh: true, version: "dr3" });
+  let r = await call(env, { targets: ["a.com", "-b.com"], fresh: true });
   checkSuccess(r);
   assert.match(r.content[0].text, /No response for 1 of 2/);
   assert.equal(readFileSync(join(dir, "argv.txt"), "utf8"), "--format json -q --version dr3 --fresh -f -\n");
