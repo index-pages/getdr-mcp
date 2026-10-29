@@ -6,6 +6,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-29
+
 ### Added
 
 - Records of invalid targets carry `"error":"invalid target"` (also in
@@ -52,5 +54,6 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Release workflow with npm trusted publishing, and `npm run release` with a
   version and tarball check for manual publishes.
 
-[Unreleased]: https://github.com/index-pages/getdr-mcp/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/index-pages/getdr-mcp/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/index-pages/getdr-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/index-pages/getdr-mcp/releases/tag/v0.1.0
