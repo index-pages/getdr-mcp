@@ -68,7 +68,7 @@ support). The binary backend honours `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` 
 | argument | type | |
 |---|---|---|
 | `targets` | string[] | required, non-empty; domains or URLs |
-| `version` | `"dr3"` or `"dr4"` | DR formula, default `dr3` (always sent explicitly, so a server or config set to `dr4` does not change it); values are not comparable between versions |
+| `version` | `"dr3"` or `"dr4"` | DR formula; when left out, the getdr server's or binary's config decides (`dr3` unless set there); values are not comparable between versions |
 | `fresh` | boolean | ignore the cache and fetch again |
 
 Targets are normalized by getdr: a URL becomes its host, `www.` is dropped, everything is lower-cased and
@@ -86,14 +86,15 @@ The text result is a JSON array with one record per target, and nothing else:
 ```
 
 The record is the getdr JSON contract, the same as `getdr --format json` and `getdr serve`. `dr` is `null`
-when Ahrefs has no data; `checked_at` is `null` too when there was no response (timeout, rate limit). Clients on
-MCP protocol 2025-06-18 or later also get `structuredContent` – `{"results": […]}` – and an
-`outputSchema` for it.
+when Ahrefs has no data; `checked_at` is `null` too when there was no response or the target is invalid. An
+invalid target (not a domain or URL, or refused by Ahrefs, such as `localhost`) also has
+`"error":"invalid target"`; no other record has an `error` key. Clients on MCP protocol 2025-06-18 or later
+also get `structuredContent` – `{"results": […]}` – and an `outputSchema` for it.
 
-When some targets got no response, the result is a normal one: all records, followed by a note naming those
-targets. Everything else comes back as a tool error (`isError: true`) with getdr's message:
+Invalid targets and targets without a response are part of a normal result. Failures come back as a tool
+error (`isError: true`) with getdr's message:
 
-- no target got a response – an error with the reason;
+- no target got a response at all;
 - getdr server answered 401 – the token is missing or wrong, set `GETDR_SERVE_TOKEN`;
 - getdr server answered 503, or the binary exited with code 3 – the Ahrefs key is missing or rejected;
 - the server is unreachable, the binary failed, or a call timed out.
@@ -144,10 +145,11 @@ For any manual publish use `npm run release` (build, tests, `check-release`, `np
 `npm publish`: with install scripts disabled (`ignore-scripts`) `prepack` does not run and the package would
 ship without `dist/`. `prepack` stays as a fallback for setups that run scripts.
 
-MCP Registry (manual, after the npm release): install `mcp-publisher` from the
-[registry releases](https://github.com/modelcontextprotocol/registry/releases), run
-`mcp-publisher login github` as a member of the `index-pages` GitHub org, then `mcp-publisher publish` in
-the repo root. It reads `server.json` and checks `mcpName` in the published npm package.
+The same workflow then publishes `server.json` to the [MCP Registry](https://registry.modelcontextprotocol.io)
+as `io.github.index-pages/getdr-mcp`: it waits until npm shows the new version (the registry checks `mcpName`
+in the npm package), proves the `index-pages` namespace with the workflow's OIDC token
+(`mcp-publisher login github-oidc`, no secret) and runs `mcp-publisher publish` with a pinned, checksummed
+`mcp-publisher`. A version already in the registry is skipped.
 
 ## License
 

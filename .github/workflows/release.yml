@@ -4,7 +4,8 @@ on:
   push:
     tags: ["v*"]
 
-# npm trusted publishing: the OIDC token replaces an NPM_TOKEN secret.
+# npm trusted publishing and the MCP Registry: the OIDC token replaces any
+# secret.
 permissions:
   contents: read
   id-token: write
@@ -50,3 +51,28 @@ jobs:
           else
             npm publish --provenance --access public --ignore-scripts
           fi
+      # The MCP Registry checks mcpName in the npm package, so it waits until
+      # npm shows the new version. The namespace io.github.index-pages is
+      # proven by this workflow's OIDC token. mcp-publisher is pinned by
+      # version and SHA-256.
+      - name: Publish to the MCP Registry
+        env:
+          MCP_PUBLISHER_VERSION: v1.8.1
+          MCP_PUBLISHER_SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
+        run: |
+          v=${GITHUB_REF_NAME#v}
+          if curl -fsS -m 30 -o /dev/null "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.index-pages%2Fgetdr-mcp/versions/$v"; then
+            echo "getdr-mcp $v is already in the MCP Registry, skipping"
+            exit 0
+          fi
+          for i in $(seq 30); do
+            npm view "getdr-mcp@$v" version >/dev/null 2>&1 && break
+            [ "$i" = 30 ] && { echo "getdr-mcp@$v is not on npm after 5 minutes" >&2; exit 1; }
+            sleep 10
+          done
+          curl -fsSL -m 120 -o mcp-publisher.tar.gz \
+            "https://github.com/modelcontextprotocol/registry/releases/download/$MCP_PUBLISHER_VERSION/mcp-publisher_linux_amd64.tar.gz"
+          echo "$MCP_PUBLISHER_SHA256  mcp-publisher.tar.gz" | sha256sum -c -
+          tar -xzf mcp-publisher.tar.gz mcp-publisher
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish

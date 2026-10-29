@@ -3,7 +3,7 @@
   "name": "io.github.index-pages/getdr-mcp",
   "title": "getdr",
   "description": "Ahrefs Domain Rating (0–100) for domains or URLs, via getdr by Index Pages",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "websiteUrl": "https://index-pages.com/getdr",
   "repository": {
     "url": "https://github.com/index-pages/getdr-mcp",
@@ -14,7 +14,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "getdr-mcp",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "transport": {
         "type": "stdio"
       },

@@ -75,11 +75,13 @@ function checkSuccess(r) {
   assert.notEqual(r.isError, true, r.content[0].text);
   const text = r.content[0].text;
   const records = parseText(r);
-  if (!records.some((rec) => rec.checked_at === null)) {
-    assert.deepEqual(JSON.parse(text), records, "the text is only the JSON array");
-  }
+  assert.deepEqual(JSON.parse(text), records, "the text is only the JSON array");
   assert.deepEqual(r.structuredContent, { results: records });
-  for (const rec of records) assert.deepEqual(Object.keys(rec), ["target", "dr", "version", "checked_at", "cached"]);
+  for (const rec of records) {
+    const keys = ["target", "dr", "version", "checked_at", "cached"];
+    if (rec.error !== undefined) keys.push("error");
+    assert.deepEqual(Object.keys(rec), keys);
+  }
   return records;
 }
 
@@ -120,10 +122,23 @@ test("version and fresh reach both backends", async (t) => {
   assert.deepEqual(binary.map((r) => r.dr), api.map((r) => r.dr));
 });
 
-test("version defaults to dr3 even when the getdr config says dr4", async (t) => {
+test("without a version the getdr config decides", async (t) => {
   if (skipReason()) return t.skip(skipReason());
-  const recs = checkSuccess(await call(binaryEnv(mock.url, TOKEN, 'version = "dr4"\n'), { targets: ["example.com"] }));
-  assert.equal(recs[0].version, "dr3");
+  const env = binaryEnv(mock.url, TOKEN, 'version = "dr4"\n');
+  assert.equal(checkSuccess(await call(env, { targets: ["example.com"] }))[0].version, "dr4");
+  assert.equal(checkSuccess(await call(env, { targets: ["example.com"], version: "dr3" }))[0].version, "dr3");
+});
+
+test("invalid targets carry an error, the same from both backends", async (t) => {
+  if (skipReason()) return t.skip(skipReason());
+  const args = { targets: ["ahrefs.com", "localhost", "exa mple.com"] };
+  const api = checkSuccess(await call(apiEnv(mock.url), args));
+  const binary = checkSuccess(await call(binaryEnv(mock.url), args));
+  assert.deepEqual(api.slice(1), [
+    { target: "localhost", dr: null, version: "dr3", checked_at: null, cached: false, error: "invalid target" },
+    { target: "exa mple.com", dr: null, version: "dr3", checked_at: null, cached: false, error: "invalid target" },
+  ]);
+  assert.deepEqual(binary.map((r) => ({ ...r, checked_at: null, cached: false })), api.map((r) => ({ ...r, checked_at: null, cached: false })));
 });
 
 test("2026-07-28 tools/call without a handshake", async (t) => {
@@ -133,7 +148,7 @@ test("2026-07-28 tools/call without a handshake", async (t) => {
     try {
       const r = await s.callTool({ targets: ["ahrefs.com"] }, modernMeta());
       assert.equal(r.resultType, "complete");
-      assert.deepEqual(r._meta, { "io.modelcontextprotocol/serverInfo": { name: "getdr-mcp", title: "getdr", version: "0.1.0" } });
+      assert.deepEqual(r._meta, { "io.modelcontextprotocol/serverInfo": { name: "getdr-mcp", title: "getdr", version: "0.2.0" } });
       delete r.resultType;
       delete r._meta;
       assert.equal(checkSuccess(r)[0].dr, 91);
@@ -211,14 +226,15 @@ test("partial results through the HTTP backend", async () => {
     });
     const recs = checkSuccess(r);
     assert.equal(recs.length, 2);
-    assert.match(r.content[0].text, /No response for 1 of 2 target\(s\).*b\.com/);
+    assert.equal(recs[1].checked_at, null);
     assert.deepEqual(seen, [
       { url: "/dr", auth: "Bearer t0k", body: { targets: ["a.com", "b.com"], version: "dr4", fresh: true } },
     ]);
 
-    // Without a token no Authorization header is sent; version defaults to dr3.
+    // Without a token no Authorization header is sent; without a version
+    // none is sent, so the server's default applies.
     await call({ PATH: dir, HOME: dir, GETDR_API: url }, { targets: ["a.com"] });
-    assert.deepEqual(seen[1], { url: "/dr", auth: undefined, body: { targets: ["a.com"], version: "dr3" } });
+    assert.deepEqual(seen[1], { url: "/dr", auth: undefined, body: { targets: ["a.com"] } });
   } finally {
     await new Promise((r) => srv.close(r));
   }
@@ -248,10 +264,22 @@ echo 'getdr: no response for 1 target(s): HTTP 429: b.com' >&2
 exit 2`,
   );
   let r = await call(env, { targets: ["a.com", "-b.com"], fresh: true });
-  checkSuccess(r);
-  assert.match(r.content[0].text, /No response for 1 of 2/);
-  assert.equal(readFileSync(join(dir, "argv.txt"), "utf8"), "--format json -q --version dr3 --fresh -f -\n");
+  assert.equal(checkSuccess(r)[1].checked_at, null);
+  assert.equal(readFileSync(join(dir, "argv.txt"), "utf8"), "--format json -q --fresh -f -\n");
   assert.equal(readFileSync(join(dir, "stdin.txt"), "utf8"), "a.com\n-b.com\n");
+  await call(env, { targets: ["a.com"], version: "dr4" });
+  assert.equal(readFileSync(join(dir, "argv.txt"), "utf8"), "--format json -q --version dr4 -f -\n");
+
+  // Exit 2 with only invalid targets: a normal result, not a tool error.
+  env = fakeBinary(
+    "invalid",
+    `while read -r l; do :; done
+echo '{"target":"localhost","dr":null,"version":"dr3","checked_at":null,"cached":false,"error":"invalid target"}'
+echo 'getdr: invalid target: localhost' >&2
+exit 2`,
+  );
+  r = await call(env, { targets: ["localhost"] });
+  assert.equal(checkSuccess(r)[0].error, "invalid target");
 
   // Exit 2 where every target got no response: tool error with getdr's reason.
   env = fakeBinary(

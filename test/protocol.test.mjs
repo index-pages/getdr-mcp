@@ -160,7 +160,7 @@ test("2026-07-28: discover, tools/list and tools/call without a handshake", asyn
   const dir = tempDir();
   const s = startServer(bareEnv(dir));
   const meta = modernMeta();
-  const serverInfo = { name: "getdr-mcp", title: "getdr", version: "0.1.0" };
+  const serverInfo = { name: "getdr-mcp", title: "getdr", version: "0.2.0" };
   try {
     const disc = (await s.request("server/discover", { _meta: meta })).result;
     assert.equal(disc.resultType, "complete");

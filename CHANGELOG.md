@@ -6,11 +6,25 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Records of invalid targets carry `"error":"invalid target"` (also in
+  `outputSchema`). Through a getdr server, a target its Ahrefs refuses is no
+  longer reported as "no response".
+- The release workflow publishes `server.json` to the MCP Registry.
+
+### Changed
+
+- Without `version`, the getdr server's or binary's config decides; before,
+  `dr3` was always sent.
+- The text result is only the JSON array: the note after it about targets
+  without a response is gone (their `checked_at` is `null`). An error for
+  "no response for any target" quotes getdr instead of guessing a cause.
+
 ### Removed
 
 - The Ahrefs attribution line at the end of the `get_dr` text result and the
-  `attribution` field of `structuredContent` (and of `outputSchema`). The text
-  result is now just the JSON array when every target got a response.
+  `attribution` field of `structuredContent` (and of `outputSchema`).
 
 ## [0.1.0] - 2026-10-28
 

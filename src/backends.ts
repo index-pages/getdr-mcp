@@ -14,6 +14,8 @@ export interface DrRecord {
   version: string;
   checked_at: string | null;
   cached: boolean;
+  // Only on an invalid target: "invalid target".
+  error?: string;
 }
 
 export interface Query {
@@ -24,7 +26,7 @@ export interface Query {
 
 export interface Outcome {
   records: DrRecord[];
-  // Why some targets got no response, when the backend said so.
+  // What the backend said about targets without a response, if anything.
   detail: string;
 }
 
@@ -40,7 +42,7 @@ export const TIMEOUT_MS = 120_000;
 const MAX_DETAIL = 2000;
 
 export function isNoResponse(r: DrRecord): boolean {
-  return r.dr === null && r.checked_at === null;
+  return r.dr === null && r.checked_at === null && r.error === undefined;
 }
 
 export function toRecord(v: unknown): DrRecord {
@@ -52,11 +54,14 @@ export function toRecord(v: unknown): DrRecord {
     !(o.dr === null || typeof o.dr === "number") ||
     typeof o.version !== "string" ||
     !(o.checked_at === null || typeof o.checked_at === "string") ||
-    typeof o.cached !== "boolean"
+    typeof o.cached !== "boolean" ||
+    !(o.error === undefined || typeof o.error === "string")
   ) {
     throw new Error(`unexpected record ${JSON.stringify(v)?.slice(0, 200)}`);
   }
-  return { target: o.target, dr: o.dr, version: o.version, checked_at: o.checked_at, cached: o.cached };
+  const r: DrRecord = { target: o.target, dr: o.dr, version: o.version, checked_at: o.checked_at, cached: o.cached };
+  if (o.error !== undefined) r.error = o.error;
+  return r;
 }
 
 function clip(s: string): string {
@@ -79,8 +84,9 @@ function serverError(body: string): string {
 export async function viaApi(base: string, token: string | undefined, q: Query): Promise<Outcome> {
   const url = base.replace(/\/+$/, "") + "/dr";
   const where = `getdr server ${base} (GETDR_API)`;
-  // Always explicit, so a server configured for dr4 still answers dr3 by default.
-  const body: { [k: string]: unknown } = { targets: q.targets, version: q.version ?? "dr3" };
+  // Without a version the server's own default applies.
+  const body: { [k: string]: unknown } = { targets: q.targets };
+  if (q.version) body.version = q.version;
   if (q.fresh) body.fresh = true;
   const headers: { [k: string]: string } = {
     "Content-Type": "application/json",
@@ -125,8 +131,7 @@ export async function viaApi(base: string, token: string | undefined, q: Query):
     const parsed = JSON.parse(text) as { results?: unknown };
     if (!Array.isArray(parsed.results)) throw new Error('no "results" array');
     const records = parsed.results.map(toRecord);
-    const detail = records.some(isNoResponse) ? "the getdr server got no answer from Ahrefs (timeout or rate limit)" : "";
-    return { records, detail };
+    return { records, detail: records.some(isNoResponse) ? "the getdr server got no answer from Ahrefs" : "" };
   } catch (err) {
     throw new BackendError(`${where} sent an unexpected response: ${(err as Error).message}`);
   }
@@ -163,7 +168,7 @@ export function viaBinary(bin: string, env: NodeJS.ProcessEnv, q: Query): Promis
   // Targets go through stdin (-f -): no shell, no argv length limits, and a
   // target that starts with "-" is never read as a flag.
   const argv = ["--format", "json", "-q"];
-  argv.push("--version", q.version ?? "dr3"); // explicit: the binary's own config may say dr4
+  if (q.version) argv.push("--version", q.version);
   if (q.fresh) argv.push("--fresh");
   argv.push("-f", "-");
 
@@ -219,7 +224,8 @@ export function viaBinary(bin: string, env: NodeJS.ProcessEnv, q: Query): Promis
         return;
       }
       // Exit 2 without records is an error (bad flag, cache, no valid
-      // targets); with records it means some targets got no response.
+      // targets); with records it means some targets were invalid or got no
+      // response.
       if (code === 2 && records.length === 0) {
         fail(stderr || "getdr failed (exit 2)");
         return;

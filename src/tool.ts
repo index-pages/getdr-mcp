@@ -23,7 +23,7 @@ export function toolDefinition(structured: boolean): unknown {
         version: {
           type: "string",
           enum: ["dr3", "dr4"],
-          description: "DR formula: dr3 or dr4 (the new one); default dr3, whatever the getdr config says. Values are not comparable between versions.",
+          description: "DR formula: dr3 or dr4 (the new one); default: the getdr server's or binary's config, dr3 unless set there. Values are not comparable between versions.",
         },
         fresh: {
           type: "boolean",
@@ -45,10 +45,11 @@ export function toolDefinition(structured: boolean): unknown {
             type: "object",
             properties: {
               target: { type: "string" },
-              dr: { type: ["number", "null"], description: "null: no data, or no response when checked_at is null" },
+              dr: { type: ["number", "null"], description: "null: no data, or no response or an invalid target when checked_at is null" },
               version: { type: "string", enum: ["dr3", "dr4"] },
-              checked_at: { type: ["string", "null"], description: "RFC 3339 UTC; null when there was no response" },
+              checked_at: { type: ["string", "null"], description: "RFC 3339 UTC; null for no response or an invalid target" },
               cached: { type: "boolean" },
+              error: { type: "string", enum: ["invalid target"], description: "only on a target that is not a domain or URL" },
             },
             required: ["target", "dr", "version", "checked_at", "cached"],
           },
@@ -128,19 +129,12 @@ export async function callGetDr(raw: { [k: string]: unknown }, opts: Options): P
     throw err;
   }
 
-  const missing = records.filter(isNoResponse);
-  if (records.length > 0 && missing.length === records.length) {
-    return toolError(
-      `No response for any target${detail ? `: ${detail}` : " (timeout or rate limit on the Ahrefs side)"}. Try again later.`,
-    );
+  // Nothing answered at all is a failure of the backend, not a result.
+  if (records.length > 0 && records.every(isNoResponse)) {
+    return toolError(detail ? `No response for any target: ${detail}` : "No response for any target.");
   }
 
-  let text = records.length ? "[\n" + records.map((r) => JSON.stringify(r)).join(",\n") + "\n]\n" : "[]\n";
-  if (missing.length > 0) {
-    text +=
-      `\nNo response for ${missing.length} of ${records.length} target(s), dr and checked_at are null: ` +
-      `${missing.map((r) => r.target).join(", ")}. Try these again later.\n`;
-  }
+  const text = records.length ? "[\n" + records.map((r) => JSON.stringify(r)).join(",\n") + "\n]\n" : "[]\n";
 
   const result: CallToolResult = { content: [{ type: "text", text }] };
   if (opts.structured) result.structuredContent = { results: records };
