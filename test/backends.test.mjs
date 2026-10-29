@@ -8,7 +8,6 @@ import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildGetdr, modernMeta, parseText, removeDir, startMock, startServer, tempDir } from "./helpers.mjs";
 
-const ATTRIBUTION = "Domain Rating by Ahrefs – https://ahrefs.com/";
 const TOKEN = "test-token";
 const TARGETS = ["https://www.Ahrefs.com/blog/", "index-pages.com", "nodata.example", "example.org", "INDEX-PAGES.com"];
 
@@ -75,9 +74,11 @@ async function call(env, args, protocolVersion) {
 function checkSuccess(r) {
   assert.notEqual(r.isError, true, r.content[0].text);
   const text = r.content[0].text;
-  assert.ok(text.endsWith(ATTRIBUTION), "attribution at the end");
   const records = parseText(r);
-  assert.deepEqual(r.structuredContent, { results: records, attribution: ATTRIBUTION });
+  if (!records.some((rec) => rec.checked_at === null)) {
+    assert.deepEqual(JSON.parse(text), records, "the text is only the JSON array");
+  }
+  assert.deepEqual(r.structuredContent, { results: records });
   for (const rec of records) assert.deepEqual(Object.keys(rec), ["target", "dr", "version", "checked_at", "cached"]);
   return records;
 }
@@ -147,7 +148,7 @@ test("protocol 2025-03-26 gets text only", async (t) => {
   const r = await call(apiEnv(mock.url), { targets: ["ahrefs.com"] }, "2025-03-26");
   assert.equal(r.structuredContent, undefined);
   assert.equal(parseText(r)[0].dr, 91);
-  assert.ok(r.content[0].text.endsWith(ATTRIBUTION));
+  assert.deepEqual(JSON.parse(r.content[0].text), parseText(r));
 });
 
 test("wrong token: tool error from both backends", async (t) => {

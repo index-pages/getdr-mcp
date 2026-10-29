@@ -76,20 +76,18 @@ duplicates are removed. Results follow the input order.
 
 ## Output
 
-The text result is a JSON array with one record per target, then the attribution line:
+The text result is a JSON array with one record per target, and nothing else:
 
 ```
 [
 {"target":"ahrefs.com","dr":91,"version":"dr3","checked_at":"2026-10-28T12:00:00Z","cached":true},
 {"target":"nodata.example","dr":null,"version":"dr3","checked_at":"2026-10-28T12:00:00Z","cached":false}
 ]
-
-Domain Rating by Ahrefs – https://ahrefs.com/
 ```
 
 The record is the getdr JSON contract, the same as `getdr --format json` and `getdr serve`. `dr` is `null`
 when Ahrefs has no data; `checked_at` is `null` too when there was no response (timeout, rate limit). Clients on
-MCP protocol 2025-06-18 or later also get `structuredContent` – `{"results": […], "attribution": "…"}` – and an
+MCP protocol 2025-06-18 or later also get `structuredContent` – `{"results": […]}` – and an
 `outputSchema` for it.
 
 When some targets got no response, the result is a normal one: all records, followed by a note naming those
@@ -107,7 +105,8 @@ handshake) and the `initialize`-based 2025-11-25, 2025-06-18, 2025-03-26 and 202
 
 Domain Rating data comes from [Ahrefs](https://ahrefs.com/) and is subject to the
 [Domain Rating License](https://ahrefs.com/legal/domain-rating-license), which requires the attribution
-"Domain Rating by Ahrefs". Every result ends with it. Keep it when you publish the numbers.
+"Domain Rating by Ahrefs" wherever you publish the numbers. The tool result carries only the data, with
+no attribution in it.
 
 getdr is not affiliated with Ahrefs.
 

@@ -3,8 +3,6 @@
 import { BackendError, findBinary, isNoResponse, viaApi, viaBinary, type Backend, type DrRecord, type Query } from "./backends.js";
 import { HOMEPAGE } from "./version.js";
 
-export const ATTRIBUTION = "Domain Rating by Ahrefs – https://ahrefs.com/";
-
 const DESCRIPTION = "Ahrefs Domain Rating (0–100) for domains or URLs, via getdr by Index Pages";
 
 export function toolDefinition(structured: boolean): unknown {
@@ -55,9 +53,8 @@ export function toolDefinition(structured: boolean): unknown {
             required: ["target", "dr", "version", "checked_at", "cached"],
           },
         },
-        attribution: { type: "string" },
       },
-      required: ["results", "attribution"],
+      required: ["results"],
     };
   }
   return tool;
@@ -65,7 +62,7 @@ export function toolDefinition(structured: boolean): unknown {
 
 export interface CallToolResult {
   content: { type: "text"; text: string }[];
-  structuredContent?: { results: DrRecord[]; attribution: string };
+  structuredContent?: { results: DrRecord[] };
   isError?: boolean;
 }
 
@@ -144,9 +141,8 @@ export async function callGetDr(raw: { [k: string]: unknown }, opts: Options): P
       `\nNo response for ${missing.length} of ${records.length} target(s), dr and checked_at are null: ` +
       `${missing.map((r) => r.target).join(", ")}. Try these again later.\n`;
   }
-  text += `\n${ATTRIBUTION}`;
 
   const result: CallToolResult = { content: [{ type: "text", text }] };
-  if (opts.structured) result.structuredContent = { results: records, attribution: ATTRIBUTION };
+  if (opts.structured) result.structuredContent = { results: records };
   return result;
 }

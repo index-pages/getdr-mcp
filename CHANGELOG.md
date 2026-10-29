@@ -6,6 +6,12 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Removed
+
+- The Ahrefs attribution line at the end of the `get_dr` text result and the
+  `attribution` field of `structuredContent` (and of `outputSchema`). The text
+  result is now just the JSON array when every target got a response.
+
 ## [0.1.0] - 2026-10-28
 
 ### Added
