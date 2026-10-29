@@ -139,6 +139,13 @@ test("invalid targets carry an error, the same from both backends", async (t) =>
     { target: "exa mple.com", dr: null, version: "dr3", checked_at: null, cached: false, error: "invalid target" },
   ]);
   assert.deepEqual(binary.map((r) => ({ ...r, checked_at: null, cached: false })), api.map((r) => ({ ...r, checked_at: null, cached: false })));
+
+  // A target starting with "#" is not lost as a comment on the binary path.
+  const hashArgs = { targets: ["#x.com", "ahrefs.com"] };
+  const hashApi = checkSuccess(await call(apiEnv(mock.url), hashArgs));
+  const hashBinary = checkSuccess(await call(binaryEnv(mock.url), hashArgs));
+  assert.equal(hashApi.length, 2);
+  assert.deepEqual(hashBinary.map((r) => [r.target, r.dr, r.error]), hashApi.map((r) => [r.target, r.dr, r.error]));
 });
 
 test("2026-07-28 tools/call without a handshake", async (t) => {

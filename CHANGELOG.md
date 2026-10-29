@@ -13,8 +13,14 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   longer reported as "no response".
 - The release workflow publishes `server.json` to the MCP Registry.
 
+### Fixed
+
+- Through the binary, a target starting with `#` was skipped as a comment of
+  the `-f -` list; such lists now go as arguments.
+
 ### Changed
 
+- The binary backend needs getdr 0.2.0 or newer (for the `error` field).
 - Without `version`, the getdr server's or binary's config decides; before,
   `dr3` was always sent.
 - The text result is only the JSON array: the note after it about targets

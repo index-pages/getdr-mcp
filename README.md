@@ -47,8 +47,10 @@ Checked on every call, in this order:
 1. `GETDR_API` is set – one `POST $GETDR_API/dr` to that getdr server (`getdr serve`), with
    `Authorization: Bearer $GETDR_SERVE_TOKEN` when the token is set. The server holds the Ahrefs key and the
    shared cache, so this machine needs neither.
-2. `getdr` is on `PATH` – runs `getdr --format json -q --version V [--fresh] -f -` with the targets on
-   stdin, no shell. The binary uses its own config, cache and key (`AHREFS_KEY`), or its own `api` setting.
+2. `getdr` (0.2.0 or newer) is on `PATH` – runs `getdr --format json -q [--version V] [--fresh] -f -` with
+   the targets on stdin, no shell (as arguments after `--` when a target starts with `#`, which `-f` would
+   skip as a comment). The binary uses its own config, cache and key (`AHREFS_KEY`), or its own `api`
+   setting.
 3. Neither – the tool returns an error with setup instructions.
 
 Install the binary with `go install github.com/index-pages/getdr@latest` or from
@@ -68,7 +70,7 @@ support). The binary backend honours `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` 
 | argument | type | |
 |---|---|---|
 | `targets` | string[] | required, non-empty; domains or URLs |
-| `version` | `"dr3"` or `"dr4"` | DR formula; when left out, the getdr server's or binary's config decides (`dr3` unless set there); values are not comparable between versions |
+| `version` | `"dr3"` or `"dr4"` | DR formula; when left out, the backend's config decides: the getdr server's with `GETDR_API`, otherwise the binary's (also when that binary uses a server), `dr3` unless set; values are not comparable between versions |
 | `fresh` | boolean | ignore the cache and fetch again |
 
 Targets are normalized by getdr: a URL becomes its host, `www.` is dropped, everything is lower-cased and

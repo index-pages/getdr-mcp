@@ -166,11 +166,14 @@ export function findBinary(env: NodeJS.ProcessEnv): string | null {
 
 export function viaBinary(bin: string, env: NodeJS.ProcessEnv, q: Query): Promise<Outcome> {
   // Targets go through stdin (-f -): no shell, no argv length limits, and a
-  // target that starts with "-" is never read as a flag.
+  // target that starts with "-" is never read as a flag. -f skips lines
+  // starting with "#", so such a list goes as arguments after "--" instead.
   const argv = ["--format", "json", "-q"];
   if (q.version) argv.push("--version", q.version);
   if (q.fresh) argv.push("--fresh");
-  argv.push("-f", "-");
+  const asArgs = q.targets.some((t) => t.trim().startsWith("#"));
+  if (asArgs) argv.push("--", ...q.targets);
+  else argv.push("-f", "-");
 
   return new Promise((resolve, reject) => {
     const fail = (msg: string) => reject(new BackendError(msg));
@@ -232,6 +235,6 @@ export function viaBinary(bin: string, env: NodeJS.ProcessEnv, q: Query): Promis
       }
       resolve({ records, detail: code === 2 ? stderr : "" });
     });
-    child.stdin.end(q.targets.join("\n") + "\n");
+    child.stdin.end(asArgs ? "" : q.targets.join("\n") + "\n");
   });
 }
